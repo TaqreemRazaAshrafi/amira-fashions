@@ -1,0 +1,22 @@
+/** Every server path in one place. */
+export const ENDPOINTS = {
+  products: '/products',
+  product: (slug) => `/products/${slug}`,
+  categories: '/categories',
+  collections: '/collections',
+  collection: (slug) => `/collections/${slug}`,
+  search: '/search',
+  cart: '/cart',
+  wishlist: '/wishlist',
+  orders: '/orders',
+  order: (id) => `/orders/${id}`,
+  paymentIntent: '/payments/intent',
+  paymentVerify: '/payments/verify',
+  newsletter: '/newsletter/subscribe',
+  contact: '/contact',
+  login: '/auth/login',
+  register: '/auth/register',
+  logout: '/auth/logout',
+  me: '/auth/me',
+  instagram: '/instagram/feed',
+}

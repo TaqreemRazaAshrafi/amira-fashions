@@ -1,0 +1,8 @@
+export { default as Hero } from './Hero'
+export { default as CategoryGrid } from './CategoryGrid'
+export { default as ProductSection } from './ProductSection'
+export { default as PromoBanner } from './PromoBanner'
+export { default as CollectionsShowcase } from './CollectionsShowcase'
+export { default as InstagramSection } from './InstagramSection'
+export { default as Testimonials } from './Testimonials'
+export { default as BrandPromise } from './BrandPromise'

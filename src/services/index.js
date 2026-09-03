@@ -1,0 +1,7 @@
+export { default as productService } from './productService'
+export { default as cartService, calculateTotals } from './cartService'
+export { default as wishlistService } from './wishlistService'
+export { default as orderService } from './orderService'
+export { default as paymentService } from './paymentService'
+export { default as authService } from './authService'
+export { default as marketingService } from './marketingService'
