@@ -1,0 +1,1 @@
+import{et as e,it as t,st as n}from"./images-B7kofclW.js";var r=n(t(),1);function i({to:t,replace:n=!0,state:i}){let a=e(),o=(0,r.useRef)(!1);return(0,r.useEffect)(()=>{o.current||(o.current=!0,a(t,{replace:n,state:i}))},[t,n,i,a]),null}export{i as t};
