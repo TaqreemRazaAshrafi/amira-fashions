@@ -1,1 +1,0 @@
-import{it as e,st as t}from"./images-B7kofclW.js";import{n,r}from"./client-BwmB87g6.js";var i=t(e(),1),a=8;function o(){let[e,t]=(0,i.useState)(()=>r.get(n.recentlyViewed,[]));return(0,i.useEffect)(()=>{r.set(n.recentlyViewed,e)},[e]),{slugs:e,track:(0,i.useCallback)(e=>{e&&t(t=>[e,...t.filter(t=>t!==e)].slice(0,a))},[]),clear:()=>t([])}}export{o as t};

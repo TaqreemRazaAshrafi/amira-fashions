@@ -1,0 +1,1 @@
+import{C as e,b as t}from"./routes-CoYnSfg7.js";import{a as n,i as r}from"./mockAdapter-DE-m-3Nr.js";var i=e(t(),1),a=8;function o(){let[e,t]=(0,i.useState)(()=>n.get(r.recentlyViewed,[]));return(0,i.useEffect)(()=>{n.set(r.recentlyViewed,e)},[e]),{slugs:e,track:(0,i.useCallback)(e=>{e&&t(t=>[e,...t.filter(t=>t!==e)].slice(0,a))},[]),clear:()=>t([])}}export{o as t};

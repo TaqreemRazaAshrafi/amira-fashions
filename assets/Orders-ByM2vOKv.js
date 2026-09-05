@@ -1,0 +1,1 @@
+import{a as e,l as t}from"./routes-CoYnSfg7.js";import{t as n}from"./index-elLVTH2T.js";var r=t();function i(){return(0,r.jsx)(n,{to:e.accountOrders})}export{i as default};
