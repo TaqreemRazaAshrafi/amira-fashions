@@ -1,4 +1,5 @@
-import { forwardRef, useId } from 'react'
+import { forwardRef, useId, useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { cn } from '../../utils/cn'
 
 /**
@@ -134,5 +135,61 @@ export const Checkbox = forwardRef(function Checkbox({ label, className, id: pro
         {label}
       </label>
     </div>
+  )
+})
+
+/**
+ * Password input with a visibility toggle.
+ *
+ * The toggle is a real button inside the field rather than a checkbox beside it,
+ * and it announces its state so a screen reader user knows whether the password
+ * is currently exposed. Autocomplete is left to the caller: a sign-in form wants
+ * `current-password`, a sign-up form `new-password`, and getting that wrong
+ * breaks password managers.
+ */
+export const PasswordField = forwardRef(function PasswordField(
+  { label = 'Password', error, hint, required, className, id: providedId, ...rest },
+  ref
+) {
+  const generatedId = useId()
+  const id = providedId || `password-${generatedId}`
+  const [isVisible, setIsVisible] = useState(false)
+
+  return (
+    <FieldShell
+      id={id}
+      label={label}
+      error={error}
+      hint={hint}
+      required={required}
+      className={className}
+    >
+      {(describedBy) => (
+        <div className="relative">
+          <input
+            ref={ref}
+            id={id}
+            type={isVisible ? 'text' : 'password'}
+            aria-invalid={error ? 'true' : undefined}
+            aria-describedby={describedBy}
+            className={cn(controlClasses, 'pr-11', error && 'border-danger')}
+            {...rest}
+          />
+          <button
+            type="button"
+            onClick={() => setIsVisible((value) => !value)}
+            aria-pressed={isVisible}
+            aria-label={isVisible ? 'Hide password' : 'Show password'}
+            className="absolute right-0 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center text-muted transition-colors duration-250 hover:text-text"
+          >
+            {isVisible ? (
+              <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            ) : (
+              <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            )}
+          </button>
+        </div>
+      )}
+    </FieldShell>
   )
 })

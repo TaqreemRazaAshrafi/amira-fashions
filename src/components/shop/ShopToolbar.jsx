@@ -15,18 +15,27 @@ export function ShopToolbar({
   onOpenFilters,
   activeCount = 0,
   showFilterButton = true,
+  isLoading = false,
+  isError = false,
   className,
 }) {
   return (
-    <div className={cn('flex items-center justify-between gap-4 border-b border-line pb-4', className)}>
+    <div
+      className={cn(
+        'flex items-center justify-between gap-3 border-b border-line pb-4 sm:gap-4',
+        className
+      )}
+    >
+      {/* A count is only meaningful once a request has succeeded — printing
+          "0 pieces" beside a failed request reads as an empty catalogue. */}
       <p
         aria-live="polite"
         className="whitespace-nowrap text-fluid-xs uppercase tracking-wide text-muted"
       >
-        {pluralize(total, 'piece')}
+        {isError ? '—' : isLoading ? 'Loading…' : pluralize(total, 'piece')}
       </p>
 
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         {showFilterButton && (
           <button
             type="button"
@@ -43,7 +52,11 @@ export function ShopToolbar({
           </button>
         )}
 
-        <div className="relative">
+        {/* A native <select> takes the width of its widest option, and
+            "Price: Low to High" is wide enough to push the whole toolbar past a
+            320px viewport. Capping the width lets the control shrink; the option
+            list itself is rendered by the platform at full width regardless. */}
+        <div className="relative min-w-0">
           <label htmlFor="sort" className="sr-only">
             Sort products
           </label>
@@ -51,7 +64,7 @@ export function ShopToolbar({
             id="sort"
             value={sort}
             onChange={(event) => onSortChange(event.target.value)}
-            className="cursor-pointer appearance-none border border-line bg-transparent py-2 pl-3 pr-9 text-fluid-xs uppercase tracking-wide transition-colors duration-250 hover:border-text focus:border-text focus:outline-none"
+            className="w-full max-w-[46vw] cursor-pointer appearance-none truncate border border-line bg-transparent py-2 pl-3 pr-9 text-fluid-xs uppercase tracking-wide transition-colors duration-250 hover:border-text focus:border-text focus:outline-none sm:max-w-none"
           >
             {SORT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>

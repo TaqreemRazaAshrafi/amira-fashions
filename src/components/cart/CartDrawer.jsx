@@ -25,7 +25,13 @@ export function CartDrawer() {
 
   const items = useCartStore((state) => state.items)
   const deliveryId = useCartStore((state) => state.deliveryId)
-  const totals = useMemo(() => calculateTotals(items, deliveryId), [items, deliveryId])
+  const coupon = useCartStore((state) => state.coupon)
+  // Same maths as the cart page, coupon included — the drawer and the page must
+  // never quote different totals for the same bag.
+  const totals = useMemo(
+    () => calculateTotals(items, deliveryId, coupon),
+    [items, deliveryId, coupon]
+  )
 
   const isEmpty = items.length === 0
 

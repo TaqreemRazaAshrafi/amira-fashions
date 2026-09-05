@@ -4,6 +4,17 @@ import { ROUTES } from '../constants/routes'
 /** Hero slides. Kept in data so marketing copy changes never touch components. */
 export const heroSlides = [
   {
+    id: 'hero-define',
+    eyebrow: 'Autumn / Winter 2026',
+    title: 'Define Your Style',
+    subtitle:
+      'Modern fashion for every moment — menswear and womenswear, cut in small runs and rarely repeated.',
+    cta: { label: 'Shop Men', to: ROUTES.men },
+    ctaSecondary: { label: 'Shop Women', to: ROUTES.women },
+    image: photo('1509319117193-57bab727e09d'),
+    focal: 'center 30%',
+  },
+  {
     id: 'hero-aurelia',
     eyebrow: 'Autumn / Winter 2026',
     title: 'Elevate Your Everyday',

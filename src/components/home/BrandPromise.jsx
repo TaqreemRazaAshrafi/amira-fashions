@@ -1,27 +1,32 @@
-import { PackageCheck, RefreshCcw, Scissors, Truck } from 'lucide-react'
+import { Headphones, RefreshCcw, ScissorsIcon, ShieldCheck, Truck } from 'lucide-react'
 import Marquee from '../common/Marquee'
 import { Stagger, StaggerItem } from '../animations/Stagger'
 
 const PROMISES = [
   {
-    icon: Scissors,
-    title: 'Cut in small runs',
-    body: 'Forty to eighty pieces per style. When a size closes, it closes.',
+    icon: ScissorsIcon,
+    title: 'Premium quality',
+    body: 'Cut in runs of forty to eighty, from cloth we buy by the roll.',
   },
   {
     icon: Truck,
-    title: 'Free shipping above ₹2,999',
-    body: 'Dispatched in two business days, everywhere in India.',
+    title: 'Fast delivery',
+    body: 'Dispatched in two business days. Free above ₹2,999, everywhere in India.',
   },
   {
     icon: RefreshCcw,
-    title: 'Easy 7-day returns',
-    body: 'Unworn, tags intact, free pickup in serviceable pincodes.',
+    title: 'Easy returns',
+    body: 'Seven days, unworn with tags. Free pickup in serviceable pincodes.',
   },
   {
-    icon: PackageCheck,
-    title: 'Woven, not printed',
-    body: 'Every zari border in the ethnic line comes off the loom.',
+    icon: ShieldCheck,
+    title: 'Secure payments',
+    body: 'UPI, cards, net banking and wallets, on our gateway’s own secure page.',
+  },
+  {
+    icon: Headphones,
+    title: 'Support that answers',
+    body: 'Reach us any day on WhatsApp or email. Real people, same time zone.',
   },
 ]
 
@@ -43,7 +48,7 @@ export function BrandPromise() {
       />
 
       <div className="shell py-12 sm:py-16">
-        <Stagger as="ul" stagger={0.08} className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        <Stagger as="ul" stagger={0.08} className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {PROMISES.map(({ icon: Icon, title, body }) => (
             <StaggerItem as="li" key={title} className="flex gap-4">
               <Icon

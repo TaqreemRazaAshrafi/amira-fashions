@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Ruler, Share2, Truck } from 'lucide-react'
 import { ROUTES } from '../../constants/routes'
 import { SITE } from '../../constants/site'
-import { sizeGuide } from '../../data/support'
+import { getSizeGuide } from '../../data/support'
 import { titleCase } from '../../utils/format'
 import { useAsync } from '../../hooks/useAsync'
 import { useProductSelection } from '../../hooks/useProductSelection'
@@ -22,6 +22,7 @@ import { ErrorState } from '../../components/common/States'
 import SectionHeader from '../../components/layout/SectionHeader'
 import ProductGallery from '../../components/product/ProductGallery'
 import ProductRail from '../../components/product/ProductRail'
+import ProductReviews from '../../components/product/ProductReviews'
 import PriceTag from '../../components/product/PriceTag'
 import SizeSelector from '../../components/product/SizeSelector'
 import QuantitySelector from '../../components/product/QuantitySelector'
@@ -29,37 +30,56 @@ import AddToCartButton from '../../components/product/AddToCartButton'
 import WishlistButton from '../../components/product/WishlistButton'
 import NotFoundPage from '../NotFound'
 
-/** Body-measurement table, opened from beside the size selector. */
-function SizeGuideModal({ open, onClose }) {
+/**
+ * Body-measurement table, opened from beside the size selector.
+ *
+ * The table is chosen by department and rendered from its own `columns`, so
+ * menswear shows chest and sleeve where womenswear shows bust and hip — rather
+ * than one table pretending to describe both.
+ */
+function SizeGuideModal({ open, onClose, department }) {
+  const guide = getSizeGuide(department)
+
   return (
     <Modal open={open} onClose={onClose} title="Size guide" size="md">
       <div className="p-6 sm:p-9">
         <h3 className="text-fluid-xl">Size guide</h3>
-        <p className="mt-3 max-w-prose text-fluid-sm leading-relaxed text-muted">
-          {sizeGuide.note}
-        </p>
+        <p className="mt-3 max-w-prose text-fluid-sm leading-relaxed text-muted">{guide.note}</p>
 
         <div className="mt-8 overflow-x-auto">
           <table className="w-full min-w-[420px] border-collapse text-fluid-sm">
-            <caption className="sr-only">Body measurements in {sizeGuide.unit}</caption>
+            <caption className="sr-only">Body measurements in {guide.unit}</caption>
             <thead>
               <tr className="border-b border-line text-left">
-                {['Size', 'Bust', 'Waist', 'Hip'].map((heading) => (
-                  <th key={heading} scope="col" className="py-3 pr-4 text-fluid-xs uppercase tracking-wide text-muted">
-                    {heading}
+                {guide.columns.map((column) => (
+                  <th
+                    key={column.key}
+                    scope="col"
+                    className="py-3 pr-4 text-fluid-xs uppercase tracking-wide text-muted"
+                  >
+                    {column.label}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {sizeGuide.rows.map((row) => (
+              {guide.rows.map((row) => (
                 <tr key={row.size} className="border-b border-line/60">
-                  <th scope="row" className="py-3 pr-4 text-left font-normal">
-                    {row.size}
-                  </th>
-                  <td className="py-3 pr-4 tabular-nums text-muted">{row.bust}&Prime;</td>
-                  <td className="py-3 pr-4 tabular-nums text-muted">{row.waist}&Prime;</td>
-                  <td className="py-3 tabular-nums text-muted">{row.hip}&Prime;</td>
+                  {guide.columns.map((column, index) =>
+                    index === 0 ? (
+                      <th
+                        key={column.key}
+                        scope="row"
+                        className="py-3 pr-4 text-left font-normal"
+                      >
+                        {row[column.key]}
+                      </th>
+                    ) : (
+                      <td key={column.key} className="py-3 pr-4 tabular-nums text-muted">
+                        {row[column.key]}&Prime;
+                      </td>
+                    )
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -81,7 +101,7 @@ export default function ProductDetailsPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
   const toast = useUIStore((state) => state.toast)
-  const { track } = useRecentlyViewed()
+  const { slugs: viewedSlugs, track } = useRecentlyViewed()
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false)
 
   const fetcher = useCallback(() => productService.getBySlug(slug), [slug])
@@ -89,6 +109,29 @@ export default function ProductDetailsPage() {
 
   const relatedFetcher = useCallback(() => productService.getRelated(slug, 8), [slug])
   const { data: related } = useAsync(relatedFetcher, [slug])
+
+  /**
+   * Recently viewed, excluding the piece already on screen. `allSettled` keeps a
+   * since-delisted product from emptying the whole rail; the slug list is frozen
+   * at mount so the current product appearing in it mid-visit cannot re-trigger
+   * the fetch in a loop.
+   */
+  const [viewedAtMount] = useState(() => viewedSlugs)
+  const recentlyViewedSlugs = useMemo(
+    () => viewedAtMount.filter((entry) => entry !== slug).slice(0, 8),
+    [viewedAtMount, slug]
+  )
+  // A single primitive keeps the fetch key stable in both length and identity.
+  const viewedKey = recentlyViewedSlugs.join(',')
+  const viewedFetcher = useCallback(async () => {
+    if (recentlyViewedSlugs.length === 0) return []
+    const results = await Promise.allSettled(
+      recentlyViewedSlugs.map((entry) => productService.getBySlug(entry))
+    )
+    return results.filter((result) => result.status === 'fulfilled').map((result) => result.value)
+  }, [recentlyViewedSlugs])
+  const { data: recentlyViewedData } = useAsync(viewedFetcher, [viewedKey])
+  const recentlyViewed = recentlyViewedData ?? []
 
   useEffect(() => {
     if (product) track(product.slug)
@@ -121,10 +164,15 @@ export default function ProductDetailsPage() {
   const { size, color, quantity, error: selectionError, maxQuantity, setSize, setColor, setQuantity, addToCart } =
     selection
 
+  // Breadcrumbs follow the department tree, so "back" from a men's shirt lands
+  // in men's shirts rather than a listing mixing both departments.
   const crumbs = [
     { label: 'Home', to: ROUTES.home },
-    { label: 'Shop', to: ROUTES.shop },
-    { label: titleCase(product.category), to: ROUTES.shopCategory(product.category) },
+    { label: titleCase(product.department), to: ROUTES.department(product.department) },
+    {
+      label: titleCase(product.category),
+      to: ROUTES.departmentCategory(product.department, product.category),
+    },
     { label: product.name, to: ROUTES.product(product.slug) },
   ]
 
@@ -150,9 +198,44 @@ export default function ProductDetailsPage() {
     }
   }
 
+  /**
+   * Specifications.
+   *
+   * Assembled from fields the product already carries rather than authored per
+   * product, so a piece can never show a spec table that contradicts its own
+   * price, stock or materials. Authored `specifications` are appended when present.
+   */
+  const specifications = [
+    { label: 'Brand', value: product.brand },
+    { label: 'SKU', value: product.sku },
+    { label: 'Department', value: titleCase(product.department) },
+    { label: 'Category', value: titleCase(product.category) },
+    { label: 'Material', value: product.material },
+    { label: 'Colours', value: product.colors.map(titleCase).join(', ') },
+    { label: 'Sizes', value: product.sizes.join(', ') },
+    { label: 'Fit', value: product.fit },
+    { label: 'Country of origin', value: 'India' },
+    ...(product.specifications ?? []),
+  ].filter((row) => row.value)
+
   const details = [
     { id: 'description', title: 'Details', content: product.description },
     { id: 'material', title: 'Material', content: product.material },
+    {
+      id: 'specifications',
+      title: 'Specifications',
+      content: (
+        <dl className="flex flex-col gap-2.5">
+          {specifications.map((row) => (
+            <div key={row.label} className="flex gap-4">
+              <dt className="w-36 shrink-0 text-muted">{row.label}</dt>
+              <dd className="min-w-0 flex-1">{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ),
+    },
+    { id: 'size-fit', title: 'Size & fit', content: product.sizeAndFit },
     {
       id: 'care',
       title: 'Care instructions',
@@ -193,12 +276,19 @@ export default function ProductDetailsPage() {
               {!product.inStock && <Badge tone="muted">Sold out</Badge>}
             </div>
 
-            <h1 className="mt-5 text-fluid-2xl">{product.name}</h1>
+            <p className="mt-5 text-fluid-xs uppercase tracking-luxe text-muted">{product.brand}</p>
+            <h1 className="mt-2 text-fluid-2xl">{product.name}</h1>
 
             <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
               <PriceTag price={product.price} compareAtPrice={product.compareAtPrice} size="lg" />
               {product.reviewCount > 0 && (
-                <Rating value={product.rating} count={product.reviewCount} />
+                <a
+                  href="#reviews"
+                  className="transition-opacity duration-250 hover:opacity-70"
+                  aria-label={`${product.reviewCount} reviews, rated ${product.rating} out of 5`}
+                >
+                  <Rating value={product.rating} count={product.reviewCount} />
+                </a>
               )}
             </div>
 
@@ -310,24 +400,47 @@ export default function ProductDetailsPage() {
         </div>
       </div>
 
+      <section id="reviews" className="scroll-mt-28 border-t border-line">
+        <div className="shell section-y">
+          <SectionHeader eyebrow="What buyers say" title="Customer reviews" />
+          <ProductReviews slug={product.slug} />
+        </div>
+      </section>
+
       {related?.length > 0 && (
         <section className="border-t border-line">
           <div className="shell section-y">
             <SectionHeader
               eyebrow="You may also like"
               title="Complete the look"
-              action={{ label: 'Shop all', to: ROUTES.shop }}
+              action={{
+                label: `Shop all ${product.department}`,
+                to: ROUTES.department(product.department),
+              }}
             />
             <ProductRail products={related} />
           </div>
         </section>
       )}
 
-      {/* Clears the fixed mobile bar so it never covers the footer. */}
+      {recentlyViewed.length > 0 && (
+        <section className="border-t border-line">
+          <div className="shell section-y">
+            <SectionHeader eyebrow="Where you have been" title="Recently viewed" />
+            <ProductRail products={recentlyViewed} />
+          </div>
+        </section>
+      )}
+
+      {/* Clears both fixed mobile bars so neither covers the footer. */}
       <div aria-hidden="true" className="h-20 lg:hidden" />
 
-      {/* Mobile sticky buy bar — the primary action stays in reach on a phone. */}
-      <div className="glass fixed inset-x-0 bottom-0 z-[60] border-t border-line px-4 py-3 lg:hidden">
+      {/* Mobile sticky buy bar. It sits directly above the bottom tab bar rather
+          than on top of it — both are fixed to the bottom of the viewport. */}
+      <div
+        className="glass fixed inset-x-0 z-[61] border-t border-line px-4 py-3 lg:hidden"
+        style={{ bottom: 'calc(3.75rem + env(safe-area-inset-bottom, 0px))' }}
+      >
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-fluid-xs text-muted">{product.name}</p>
@@ -344,7 +457,11 @@ export default function ProductDetailsPage() {
         </div>
       </div>
 
-      <SizeGuideModal open={isSizeGuideOpen} onClose={() => setIsSizeGuideOpen(false)} />
+      <SizeGuideModal
+        open={isSizeGuideOpen}
+        onClose={() => setIsSizeGuideOpen(false)}
+        department={product.department}
+      />
     </>
   )
 }

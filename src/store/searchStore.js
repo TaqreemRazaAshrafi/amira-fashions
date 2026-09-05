@@ -4,13 +4,32 @@ import { STORAGE_KEYS } from '../utils/storage'
 
 const MAX_RECENT = 6
 
+/**
+ * Terms shown before anyone types.
+ *
+ * Curated rather than computed: with no analytics backend there is nothing to
+ * rank by, and inventing a ranking would be worse than an honest editorial pick.
+ * Both departments are represented so the suggestions never read as one-sided.
+ */
 export const POPULAR_SEARCHES = [
   'satin slip dress',
-  'chanderi anarkali',
+  'oxford shirt',
+  'selvedge denim',
   'linen co-ord',
+  'kurta',
+  'chikankari',
+  'leather jacket',
   'sequin',
-  'ivory',
+]
+
+/** Shown under a Trending heading — the seasonal half of the same list. */
+export const TRENDING_SEARCHES = [
+  'ethnic wear',
   'party wear',
+  'wide leg trousers',
+  'overshirt',
+  'sarees',
+  'court sneaker',
 ]
 
 export const useSearchStore = create()(

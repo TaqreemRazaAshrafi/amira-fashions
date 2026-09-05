@@ -3,6 +3,7 @@ import { Route, Routes, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import AppLayout from './components/layout/AppLayout'
 import PageTransition from './components/animations/PageTransition'
+import ProtectedRoute from './components/common/ProtectedRoute'
 import { Skeleton, ProductGridSkeleton } from './components/common/Skeleton'
 import { routes } from './routes'
 
@@ -29,6 +30,10 @@ function RouteFallback() {
  * Each route carries its own <Suspense>. A boundary placed *above*
  * AnimatePresence would unmount the whole presence tree the moment a lazy page
  * chunk suspends mid-transition, and the incoming page would never appear.
+ *
+ * The auth guard wraps the <Suspense>, not the page, so a protected route
+ * redirects without first downloading a chunk the visitor may not be allowed
+ * to see.
  */
 export default function App() {
   const location = useLocation()
@@ -37,19 +42,25 @@ export default function App() {
     <AppLayout>
       <AnimatePresence mode="wait" initial={false}>
         <Routes location={location} key={location.pathname}>
-          {routes.map(({ path, Component }) => (
-            <Route
-              key={path}
-              path={path}
-              element={
-                <PageTransition>
-                  <Suspense fallback={<RouteFallback />}>
-                    <Component />
-                  </Suspense>
-                </PageTransition>
-              }
-            />
-          ))}
+          {routes.map(({ path, Component, props, protected: isProtected }) => {
+            const page = (
+              <Suspense fallback={<RouteFallback />}>
+                <Component {...props} />
+              </Suspense>
+            )
+
+            return (
+              <Route
+                key={path}
+                path={path}
+                element={
+                  <PageTransition>
+                    {isProtected ? <ProtectedRoute>{page}</ProtectedRoute> : page}
+                  </PageTransition>
+                }
+              />
+            )
+          })}
         </Routes>
       </AnimatePresence>
     </AppLayout>

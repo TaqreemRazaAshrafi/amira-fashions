@@ -7,9 +7,22 @@ import { cn } from '../../utils/cn'
 /** Router Link with motion props, created once at module scope. */
 const MotionLink = motion.create(Link)
 
+/**
+ * Variants are mutually exclusive: `cn` is a plain joiner, so passing a
+ * conflicting colour through `className` leaves two utilities of equal
+ * specificity fighting, and which one wins depends on Tailwind's output order
+ * rather than on intent. Anything needing a different colour treatment belongs
+ * here as its own variant.
+ *
+ * `outlineLight` is the outline button as it must look over a photograph: a
+ * translucent backdrop carries it over both the bright and dark parts of an
+ * image, where a plain border alone disappears.
+ */
 const VARIANTS = {
   primary: 'bg-text text-background hover:bg-secondary',
   outline: 'border border-text/25 text-text hover:border-text hover:bg-text hover:text-background',
+  outlineLight:
+    'border border-background/60 bg-text/25 text-background backdrop-blur-sm hover:border-background hover:bg-background hover:text-text',
   ghost: 'text-text hover:bg-text/5',
   accent: 'bg-accent text-background hover:bg-accent/90',
   light: 'bg-background text-text hover:bg-surface-alt',

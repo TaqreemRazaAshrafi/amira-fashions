@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes'
-import { categories } from '../../data/categories'
+import { featuredCategories } from '../../data/categories'
+import { departments } from '../../data/departments'
 import Seo from '../../components/common/Seo'
 import Button from '../../components/common/Button'
 import TextReveal from '../../components/animations/TextReveal'
@@ -47,14 +48,16 @@ export default function NotFoundPage() {
 
         <Reveal delay={0.24} className="mt-14 w-full max-w-2xl border-t border-line pt-8">
           <p className="eyebrow mb-5">Or browse a category</p>
+          {/* Featured categories only — the full tree of twenty-nine would read as
+              a sitemap rather than a way out. */}
           <ul className="flex flex-wrap justify-center gap-2">
-            {categories.map((category) => (
-              <li key={category.slug}>
+            {departments.flatMap((d) => featuredCategories(d.slug)).map((category) => (
+              <li key={category.id}>
                 <Link
-                  to={ROUTES.shopCategory(category.slug)}
+                  to={ROUTES.departmentCategory(category.department, category.slug)}
                   className="inline-block border border-line px-4 py-2 text-fluid-xs uppercase tracking-wide transition-colors duration-250 hover:border-text hover:bg-text hover:text-background"
                 >
-                  {category.name}
+                  {category.department} {category.name}
                 </Link>
               </li>
             ))}

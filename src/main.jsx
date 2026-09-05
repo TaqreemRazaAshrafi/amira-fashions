@@ -8,7 +8,7 @@ import './styles/globals.css'
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <HelmetProvider>
-      <BrowserRouter>
+      <BrowserRouter basename="/amira-fashions">
         <App />
       </BrowserRouter>
     </HelmetProvider>

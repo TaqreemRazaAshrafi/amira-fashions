@@ -2,7 +2,9 @@ import { useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { PackageOpen } from 'lucide-react'
 import { ROUTES } from '../../constants/routes'
-import { categorySlugs, getCategoryBySlug } from '../../data/categories'
+import { getCategory, getCategoryBySlug } from '../../data/categories'
+import { getDepartment } from '../../data/departments'
+import { getCollectionBySlug } from '../../data/collections'
 import { useShopFilters } from '../../hooks/useShopFilters'
 import { useAsync } from '../../hooks/useAsync'
 import { useUIStore } from '../../store/uiStore'
@@ -24,21 +26,95 @@ import ShopToolbar from '../../components/shop/ShopToolbar'
 const PER_PAGE = 12
 
 /**
- * Shop — the main discovery surface.
+ * Resolves the listing's fixed context from the route.
  *
- * Serves both `/shop` and `/shop/:category`; when a category is in the path it
- * is locked (removed from the filter panel and from the removable chips) so the
- * URL and the UI can never disagree.
- *
- * All filter state lives in the query string via `useShopFilters`, which makes
- * every filtered view shareable and correct on back/forward.
+ * A listing is scoped by some combination of department, category and
+ * collection, all of which come from the path rather than the query string.
+ * Working that out in one place keeps the component below free of branching on
+ * "which route am I".
  */
-export default function ShopPage() {
+function useListingContext({ department, collection, saleOnly, title: titleOverride }) {
   const { category: categoryParam } = useParams()
-  const openFilterDrawer = useUIStore((state) => state.openFilterDrawer)
 
-  const category = categoryParam ? getCategoryBySlug(categoryParam) : null
-  const isUnknownCategory = Boolean(categoryParam) && !categorySlugs.includes(categoryParam)
+  return useMemo(() => {
+    const dept = department ? getDepartment(department) : null
+    const category = categoryParam
+      ? department
+        ? getCategory(department, categoryParam)
+        : getCategoryBySlug(categoryParam)
+      : null
+    const edit = collection ? getCollectionBySlug(collection) : null
+
+    // A category slug that does not exist in this department is a dead URL.
+    const isUnknown = Boolean(categoryParam) && !category
+
+    const crumbs = [{ label: 'Home', to: ROUTES.home }]
+    if (dept) crumbs.push({ label: dept.name, to: ROUTES.department(dept.slug) })
+    else if (!edit && !saleOnly) crumbs.push({ label: 'Shop', to: ROUTES.shop })
+    if (category)
+      crumbs.push({
+        label: category.name,
+        to: dept
+          ? ROUTES.departmentCategory(dept.slug, category.slug)
+          : ROUTES.shopCategory(category.slug),
+      })
+    if (edit) crumbs.push({ label: edit.name, to: `/${collection}` })
+
+    const title =
+      titleOverride ??
+      (category ? (dept ? `${dept.name}'s ${category.name}` : category.name) : null) ??
+      edit?.name ??
+      (dept ? `All ${dept.name}` : 'Shop All')
+
+    const description =
+      category?.description ??
+      edit?.description ??
+      dept?.description ??
+      'The complete Amira catalogue — menswear and womenswear, filtered however you like.'
+
+    const canonicalPath = category
+      ? dept
+        ? ROUTES.departmentCategory(dept.slug, category.slug)
+        : ROUTES.shopCategory(category.slug)
+      : edit
+        ? `/${collection}`
+        : saleOnly
+          ? ROUTES.sale
+          : dept
+            ? ROUTES.department(dept.slug)
+            : ROUTES.shop
+
+    return {
+      dept,
+      category,
+      categoryParam,
+      edit,
+      isUnknown,
+      crumbs,
+      title,
+      description,
+      canonicalPath,
+      eyebrow: category ? 'Category' : (edit?.subtitle ?? dept?.tagline ?? 'The catalogue'),
+      image: category?.image ?? edit?.cover,
+    }
+  }, [department, categoryParam, collection, saleOnly, titleOverride])
+}
+
+/**
+ * Product listing — the main discovery surface.
+ *
+ * One component serves every catalogue route: `/shop`, `/shop/:category`,
+ * `/men/:category`, `/women/:category` and the editorial listings
+ * (`/new-arrivals`, `/best-sellers`, `/sale`). What differs between them is the
+ * locked scope, which arrives as props from the route table and as path params —
+ * never as component-local state.
+ *
+ * All refinement state lives in the query string via `useShopFilters`, which
+ * makes every filtered view shareable and correct on back/forward.
+ */
+export default function ShopPage({ department, collection, saleOnly = false, title }) {
+  const openFilterDrawer = useUIStore((state) => state.openFilterDrawer)
+  const context = useListingContext({ department, collection, saleOnly, title })
 
   const {
     filters,
@@ -52,66 +128,69 @@ export default function ShopPage() {
     clearAll,
     setSort,
     setPage,
-  } = useShopFilters({ lockedCategory: categoryParam ?? undefined })
+  } = useShopFilters({
+    lockedDepartment: department,
+    lockedCategory: context.categoryParam ?? undefined,
+    lockedCollection: collection,
+  })
+
+  // `sale` is locked on for /sale, and otherwise left to the shopper.
+  const effectiveFilters = useMemo(
+    () => (saleOnly ? { ...filters, sale: true } : filters),
+    [filters, saleOnly]
+  )
 
   // A single primitive key keeps the effect dependency list stable in length.
-  const requestKey = useMemo(() => JSON.stringify({ filters, sort, page }), [filters, sort, page])
+  const requestKey = useMemo(
+    () => JSON.stringify({ effectiveFilters, sort, page }),
+    [effectiveFilters, sort, page]
+  )
 
   const fetcher = useCallback(
-    () => productService.list({ ...filters, sort, page, perPage: PER_PAGE }),
-    [filters, sort, page]
+    () => productService.list({ ...effectiveFilters, sort, page, perPage: PER_PAGE }),
+    [effectiveFilters, sort, page]
   )
   const { data, isLoading, isError, retry } = useAsync(fetcher, [requestKey])
 
-  if (isUnknownCategory) return <Redirect to={ROUTES.shop} />
+  if (context.isUnknown) {
+    return <Redirect to={department ? ROUTES.department(department) : ROUTES.shop} />
+  }
 
   const products = data?.items ?? []
   const total = data?.total ?? 0
   const totalPages = data?.totalPages ?? 1
 
-  const title = category ? category.name : 'Shop All'
-  const description = category
-    ? category.description
-    : 'The complete Amira catalogue — dresses, co-ords, tops, ethnic and party wear, filtered however you like.'
-
   const panelProps = {
     filters,
     update,
     toggleValue,
-    lockedCategory: categoryParam ?? undefined,
+    facets: data?.facets,
+    lockedDepartment: department,
+    lockedCategory: context.categoryParam ?? undefined,
+    lockedCollection: collection,
   }
 
   return (
     <>
       <Seo
-        title={title}
-        description={description}
-        image={category?.image}
-        canonicalPath={category ? ROUTES.shopCategory(category.slug) : ROUTES.shop}
-        jsonLd={structuredData.breadcrumbs(
-          [
-            { label: 'Home', to: ROUTES.home },
-            { label: 'Shop', to: ROUTES.shop },
-            category && { label: category.name, to: ROUTES.shopCategory(category.slug) },
-          ].filter(Boolean)
-        )}
+        title={context.title}
+        description={context.description}
+        image={context.image}
+        canonicalPath={context.canonicalPath}
+        jsonLd={structuredData.breadcrumbs(context.crumbs)}
       />
 
       <PageHero
-        eyebrow={category ? 'Category' : 'The catalogue'}
-        title={title}
-        description={description}
-        image={category?.image}
+        eyebrow={context.eyebrow}
+        title={context.title}
+        description={context.description}
+        image={context.image}
         height="sm"
-        breadcrumbs={[
-          { label: 'Home', to: ROUTES.home },
-          { label: 'Shop', to: ROUTES.shop },
-          ...(category ? [{ label: category.name, to: ROUTES.shopCategory(category.slug) }] : []),
-        ]}
+        breadcrumbs={context.crumbs}
       />
 
       <div className="shell pb-section pt-10 sm:pt-14">
-        <CategoryRail className="mb-10" />
+        <CategoryRail department={department} className="mb-10" />
 
         <div className="grid gap-10 lg:grid-cols-[260px_1fr] lg:gap-14">
           {/* Desktop filters */}
@@ -140,6 +219,8 @@ export default function ShopPage() {
               onSortChange={setSort}
               onOpenFilters={openFilterDrawer}
               activeCount={activeCount}
+              isLoading={isLoading}
+              isError={isError}
             />
 
             <ActiveFilters
@@ -166,9 +247,15 @@ export default function ShopPage() {
                   title="No pieces match those filters"
                   description="Try removing a filter, widening the price range, or browsing the full catalogue."
                   action={
-                    <Button variant="outline" onClick={clearAll}>
-                      Clear all filters
-                    </Button>
+                    activeCount > 0 ? (
+                      <Button variant="outline" onClick={clearAll}>
+                        Clear all filters
+                      </Button>
+                    ) : (
+                      <Button variant="outline" to={ROUTES.shop}>
+                        Browse everything
+                      </Button>
+                    )
                   }
                 />
               )}
@@ -189,12 +276,7 @@ export default function ShopPage() {
         </div>
       </div>
 
-      <FilterDrawer
-        {...panelProps}
-        total={total}
-        activeCount={activeCount}
-        onClear={clearAll}
-      />
+      <FilterDrawer {...panelProps} total={total} activeCount={activeCount} onClear={clearAll} />
     </>
   )
 }

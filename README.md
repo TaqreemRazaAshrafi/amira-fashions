@@ -1,9 +1,11 @@
 # Amira Fashions
 
 A production-ready storefront for **Amira Fashions** — an Instagram-native Indian fashion label
-([@amira\_\_fashions](https://instagram.com/amira__fashions)). Editorial layout, motion that stays
-quiet, and a data layer built so the mock catalogue can be swapped for a real backend without
-touching the UI.
+([@amira\_\_fashions](https://instagram.com/amira__fashions)). Menswear and womenswear across 29
+categories, editorial layout, motion that stays quiet, and a data layer built so the local catalogue
+can be swapped for a real backend without touching the UI.
+
+The backend contract — including the endpoints that still need building — is in [API.md](API.md).
 
 React 19 · Vite · Tailwind CSS · Framer Motion · Zustand · React Hook Form + Zod · Axios
 
@@ -28,15 +30,17 @@ npm run dev             # http://localhost:5173
 src/
 ├── api/          axios instance, endpoint map, mock transport
 ├── services/     the only place that talks to the API — components call these
-├── store/        Zustand slices (cart, wishlist, auth, search, UI)
+├── store/        Zustand slices (cart, wishlist, auth, user, orders, search, UI)
 ├── hooks/        reusable behaviour (async, filters, focus trap, media queries…)
-├── data/         mock catalogue and editorial copy
+├── data/         departments, categories, catalogue, reviews, coupons, editorial copy
 ├── constants/    routes, filter vocabularies, brand/site config
 ├── utils/        pure helpers (formatting, image URLs, query, storage)
 ├── components/
 │   ├── common/       design-system primitives (Button, Image, Modal, Seo…)
 │   ├── layout/       app shell, page header, section header
 │   ├── navbar/ footer/ search/ cart/ checkout/ product/ collection/ shop/ home/
+│   ├── account/      account shell, order cards, the shared address form
+│   ├── auth/         the split-screen frame every sign-in screen sits in
 │   └── animations/   shared variants, reveals, page transition, custom cursor
 ├── pages/        one folder per route
 └── routes/       the lazily-loaded route table
@@ -45,7 +49,12 @@ src/
 Rules the codebase holds to:
 
 - **Components never import `data/` or `axios` directly.** They call a service; the service decides
-  whether the answer comes from the mock dataset or the server.
+  whether the answer comes from the local dataset or the server.
+- **The catalogue tree is data.** A category added to `data/categories.js` — or returned by
+  `GET /categories` — appears in the mega menu, the filters, the footer and the category rails with
+  no component change. Departments work the same way, including their routes.
+- **Filters render from server facets, not constants.** A listing only offers values that can return
+  something: no shoe sizes on a page of dresses, no brand with nothing in stock.
 - **Design tokens only.** Colours, type scale, spacing and easing live in `styles/globals.css` and
   `tailwind.config.js`. No hex values in components.
 - **URL is the source of truth for discovery state.** `useShopFilters` reads and writes the query
@@ -57,7 +66,8 @@ Rules the codebase holds to:
 
 1. Point `VITE_API_BASE_URL` at your API and set `VITE_USE_MOCK_API=false`.
 2. Match the endpoint paths in [`src/api/endpoints.js`](src/api/endpoints.js) — or edit them.
-3. Return the product shape produced by `normalize()` in [`src/data/products.js`](src/data/products.js).
+3. Return the shapes documented in [API.md](API.md) — the product contract is produced by
+   `normalizeCatalog()` in [`src/data/normalizeProduct.js`](src/data/normalizeProduct.js).
 
 Nothing in `components/` or `pages/` changes. `src/api/mockAdapter.js` and the `USE_MOCK` guards in
 each service can then be deleted.

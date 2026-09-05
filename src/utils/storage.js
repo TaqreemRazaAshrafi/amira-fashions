@@ -50,6 +50,8 @@ export const STORAGE_KEYS = {
   cart: 'amira.cart.v1',
   wishlist: 'amira.wishlist.v1',
   auth: 'amira.auth.v1',
+  user: 'amira.user.v1',
+  orders: 'amira.orders.v1',
   recentSearches: 'amira.search.recent.v1',
   recentlyViewed: 'amira.recently-viewed.v1',
 }

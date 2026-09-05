@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion'
 import { Check } from 'lucide-react'
 import { ROUTES } from '../../constants/routes'
-import { INSTAGRAM_HANDLE } from '../../constants/site'
 import { formatDate, formatPrice } from '../../utils/format'
 import Button from '../common/Button'
 
@@ -9,7 +8,7 @@ import Button from '../common/Button'
 export function OrderConfirmation({ order }) {
   const rows = [
     { label: 'Order number', value: order.id },
-    { label: 'Total paid', value: formatPrice(order.totals.total) },
+    { label: 'Total', value: formatPrice(order.totals.total) },
     {
       label: 'Payment',
       value: order.payment?.method === 'cod' ? 'Cash on delivery' : 'Paid online',
@@ -28,10 +27,14 @@ export function OrderConfirmation({ order }) {
         <Check className="h-7 w-7" strokeWidth={1.4} aria-hidden="true" />
       </motion.span>
 
+      <p className="eyebrow mb-4">Order placed successfully</p>
       <h1 className="text-fluid-2xl">Thank you — your order is confirmed.</h1>
       <p className="mx-auto mt-4 max-w-prose text-fluid-sm leading-relaxed text-muted">
-        A confirmation is on its way to {order.customer.email}. We pack and dispatch within two
-        business days, and you will get a tracking link the moment it leaves the studio.
+        {order.customer?.email
+          ? `A confirmation is on its way to ${order.customer.email}.`
+          : 'A confirmation is on its way.'}{' '}
+        We pack and dispatch within two business days, and you will get a tracking link the moment
+        it leaves the studio.
       </p>
 
       <dl className="mx-auto mt-12 grid max-w-md gap-px border-y border-line text-left">
@@ -44,11 +47,11 @@ export function OrderConfirmation({ order }) {
       </dl>
 
       <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
-        <Button to={ROUTES.shop} size="lg">
-          Continue shopping
+        <Button to={ROUTES.order(order.id)} size="lg">
+          View order
         </Button>
-        <Button href={`https://instagram.com/${INSTAGRAM_HANDLE}`} variant="outline" size="lg">
-          Follow the studio
+        <Button to={ROUTES.shop} variant="outline" size="lg">
+          Continue shopping
         </Button>
       </div>
     </div>

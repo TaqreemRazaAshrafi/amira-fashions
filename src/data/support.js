@@ -1,16 +1,55 @@
 /** Size guide, FAQ and policy copy — surfaced on PDP, contact and checkout. */
-export const sizeGuide = {
-  unit: 'inches',
-  note: 'Measurements are of the body, not the garment. If you are between sizes, we recommend sizing up for structured pieces and down for knits.',
-  rows: [
-    { size: 'XS', bust: '32', waist: '25', hip: '35' },
-    { size: 'S', bust: '34', waist: '27', hip: '37' },
-    { size: 'M', bust: '36', waist: '29', hip: '39' },
-    { size: 'L', bust: '38', waist: '31', hip: '41' },
-    { size: 'XL', bust: '40', waist: '33', hip: '43' },
-    { size: 'XXL', bust: '42', waist: '35', hip: '45' },
-  ],
+
+/**
+ * Body-measurement tables, per department.
+ *
+ * Menswear and womenswear are not measured the same way, so each department
+ * declares its own columns rather than forcing one table to cover both. The PDP
+ * picks the table by the product's department, and `columns` drives the table
+ * head, so adding a measurement is a data change.
+ */
+export const sizeGuides = {
+  women: {
+    unit: 'inches',
+    note: 'Measurements are of the body, not the garment. If you are between sizes, we recommend sizing up for structured pieces and down for knits.',
+    columns: [
+      { key: 'size', label: 'Size' },
+      { key: 'bust', label: 'Bust' },
+      { key: 'waist', label: 'Waist' },
+      { key: 'hip', label: 'Hip' },
+    ],
+    rows: [
+      { size: 'XS', bust: '32', waist: '25', hip: '35' },
+      { size: 'S', bust: '34', waist: '27', hip: '37' },
+      { size: 'M', bust: '36', waist: '29', hip: '39' },
+      { size: 'L', bust: '38', waist: '31', hip: '41' },
+      { size: 'XL', bust: '40', waist: '33', hip: '43' },
+      { size: 'XXL', bust: '42', waist: '35', hip: '45' },
+    ],
+  },
+  men: {
+    unit: 'inches',
+    note: 'Measurements are of the body, not the garment. Shirts are cut trim through the body — size up if you prefer a looser drape.',
+    columns: [
+      { key: 'size', label: 'Size' },
+      { key: 'chest', label: 'Chest' },
+      { key: 'waist', label: 'Waist' },
+      { key: 'sleeve', label: 'Sleeve' },
+    ],
+    rows: [
+      { size: 'S', chest: '36–38', waist: '30–32', sleeve: '33' },
+      { size: 'M', chest: '38–40', waist: '32–34', sleeve: '34' },
+      { size: 'L', chest: '40–42', waist: '34–36', sleeve: '35' },
+      { size: 'XL', chest: '42–44', waist: '36–38', sleeve: '36' },
+      { size: 'XXL', chest: '44–46', waist: '38–40', sleeve: '36.5' },
+    ],
+  },
 }
+
+/** Default table, kept for anything that has no department to hand. */
+export const sizeGuide = sizeGuides.women
+
+export const getSizeGuide = (department) => sizeGuides[department] ?? sizeGuides.women
 
 export const faqs = [
   {
@@ -66,3 +105,53 @@ export const deliveryOptions = [
     freeAbove: null,
   },
 ]
+
+/**
+ * Payment methods offered at checkout.
+ *
+ * `gateway: true` means the method is completed on the provider's hosted page —
+ * the browser never sees card or UPI credentials. Cash on delivery is the only
+ * non-gateway route, and it carries its own order-value ceiling.
+ */
+export const paymentMethods = [
+  {
+    id: 'upi',
+    label: 'UPI',
+    title: 'UPI',
+    description: 'Google Pay, PhonePe, Paytm or any UPI app. Approve on your phone.',
+    gateway: true,
+  },
+  {
+    id: 'card',
+    label: 'Card',
+    title: 'Credit or debit card',
+    description: 'Visa, Mastercard, RuPay and Amex. Entered on our gateway’s secure page.',
+    gateway: true,
+  },
+  {
+    id: 'netbanking',
+    label: 'Net Banking',
+    title: 'Net banking',
+    description: 'All major Indian banks, through your own bank’s login.',
+    gateway: true,
+  },
+  {
+    id: 'wallet',
+    label: 'Wallet',
+    title: 'Wallet',
+    description: 'Paytm, Amazon Pay, Mobikwik and other supported wallets.',
+    gateway: true,
+  },
+  {
+    id: 'cod',
+    label: 'Cash on Delivery',
+    title: 'Cash on delivery',
+    description: 'Pay the courier when it arrives. Please keep exact change ready.',
+    gateway: false,
+    maxOrderValue: 15000,
+  },
+]
+
+/** The ceiling above which cash on delivery is withdrawn. */
+export const COD_LIMIT =
+  paymentMethods.find((method) => method.id === 'cod')?.maxOrderValue ?? 15000

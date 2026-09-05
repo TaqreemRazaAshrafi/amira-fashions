@@ -17,10 +17,16 @@ export function CartSummary({ totals, className, showItemCount = false }) {
       value: `− ${formatPrice(totals.savings)}`,
       tone: 'accent',
     },
+    totals.discount > 0 && {
+      label: totals.couponCode ? `Discount · ${totals.couponCode}` : 'Discount',
+      value: `− ${formatPrice(totals.discount)}`,
+      tone: 'accent',
+    },
     {
       label: 'Shipping',
       value: totals.shipping === 0 ? 'Complimentary' : formatPrice(totals.shipping),
     },
+    totals.tax > 0 && { label: 'Tax', value: formatPrice(totals.tax) },
   ].filter(Boolean)
 
   return (

@@ -1,6 +1,6 @@
 import { cn } from '../../utils/cn'
 import { formatPrice } from '../../utils/format'
-import { deliveryOptions } from '../../data/support'
+import { deliveryOptions, paymentMethods } from '../../data/support'
 
 /** Shared radio-card shell for the delivery and payment choices. */
 function OptionCard({ name, value, checked, onChange, title, description, meta, disabled }) {
@@ -35,9 +35,9 @@ function OptionCard({ name, value, checked, onChange, title, description, meta, 
 }
 
 /** Delivery speed. Free-shipping thresholds are reflected in the price shown. */
-export function DeliverySelector({ value, onChange, subtotal }) {
+export function DeliverySelector({ value, onChange, subtotal, className }) {
   return (
-    <fieldset className="flex flex-col gap-3">
+    <fieldset className={cn('flex flex-col gap-3', className)}>
       <legend className="sr-only">Delivery method</legend>
       {deliveryOptions.map((option) => {
         const isFree = option.freeAbove != null && subtotal >= option.freeAbove
@@ -58,39 +58,36 @@ export function DeliverySelector({ value, onChange, subtotal }) {
   )
 }
 
-const PAYMENT_METHODS = [
-  {
-    id: 'online',
-    title: 'Pay online',
-    description: 'UPI, cards, net banking and wallets. Handled by our payment gateway.',
-  },
-  {
-    id: 'cod',
-    title: 'Cash on delivery',
-    description: 'Available on orders up to ₹15,000. Please keep exact change ready.',
-  },
-]
-
-export function PaymentSelector({ value, onChange, codDisabled }) {
+/**
+ * Payment method.
+ *
+ * Options come from `data/support`, so adding a gateway method is a data change
+ * rather than a component change. Cash on delivery is disabled above its own
+ * order-value ceiling, and says why rather than simply greying out.
+ */
+export function PaymentSelector({ value, onChange, codDisabled, className }) {
   return (
-    <fieldset className="flex flex-col gap-3">
+    <fieldset className={cn('flex flex-col gap-3', className)}>
       <legend className="sr-only">Payment method</legend>
-      {PAYMENT_METHODS.map((method) => (
-        <OptionCard
-          key={method.id}
-          name="payment"
-          value={method.id}
-          checked={value === method.id}
-          onChange={onChange}
-          disabled={method.id === 'cod' && codDisabled}
-          title={method.title}
-          description={
-            method.id === 'cod' && codDisabled
-              ? 'Not available on orders above ₹15,000.'
-              : method.description
-          }
-        />
-      ))}
+      {paymentMethods.map((method) => {
+        const isBlocked = method.id === 'cod' && codDisabled
+        return (
+          <OptionCard
+            key={method.id}
+            name="payment"
+            value={method.id}
+            checked={value === method.id}
+            onChange={onChange}
+            disabled={isBlocked}
+            title={method.title}
+            description={
+              isBlocked
+                ? `Not available on orders above ${formatPrice(method.maxOrderValue)}.`
+                : method.description
+            }
+          />
+        )
+      })}
     </fieldset>
   )
 }

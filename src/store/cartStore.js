@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { STORAGE_KEYS } from '../utils/storage'
-import { calculateTotals } from '../services/cartService'
+import cartService, { calculateTotals } from '../services/cartService'
 
 /** A cart line is unique per product + size + colour. */
 export const lineId = (productId, size, color) => `${productId}::${size ?? '-'}::${color ?? '-'}`
@@ -13,6 +13,8 @@ function toLine(product, { size, color, quantity }) {
     productId: product.id,
     slug: product.slug,
     name: product.name,
+    /** Kept so the bag can scope its recommendations to the right department. */
+    department: product.department,
     image: product.images[0],
     price: product.price,
     compareAtPrice: product.compareAtPrice,
@@ -28,6 +30,8 @@ export const useCartStore = create()(
     (set, get) => ({
       items: [],
       deliveryId: 'standard',
+      /** The applied promotional code, or null. Persisted with the bag. */
+      coupon: null,
       /** Set briefly after an add so the header icon can animate. */
       lastAddedId: null,
 
@@ -75,11 +79,26 @@ export const useCartStore = create()(
       },
 
       setDelivery: (deliveryId) => set({ deliveryId }),
-      clear: () => set({ items: [], lastAddedId: null }),
+
+      /**
+       * Validates a code against the current subtotal and applies it.
+       * Throws with a shopper-readable message when it does not qualify, which
+       * the cart surfaces inline.
+       */
+      applyCoupon: async (code) => {
+        const subtotal = get().items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+        const coupon = await cartService.applyCoupon(code, subtotal)
+        set({ coupon })
+        return coupon
+      },
+
+      removeCoupon: () => set({ coupon: null }),
+
+      clear: () => set({ items: [], lastAddedId: null, coupon: null }),
       clearLastAdded: () => set({ lastAddedId: null }),
 
       /** Derived values — computed on read so they never drift from `items`. */
-      totals: () => calculateTotals(get().items, get().deliveryId),
+      totals: () => calculateTotals(get().items, get().deliveryId, get().coupon),
       count: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
       hasItem: (productId) => get().items.some((item) => item.productId === productId),
     }),
@@ -88,7 +107,7 @@ export const useCartStore = create()(
       storage: createJSONStorage(() => localStorage),
       version: 1,
       // Transient UI state must not survive a reload.
-      partialize: ({ items, deliveryId }) => ({ items, deliveryId }),
+      partialize: ({ items, deliveryId, coupon }) => ({ items, deliveryId, coupon }),
     }
   )
 )

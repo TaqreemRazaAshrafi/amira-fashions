@@ -116,10 +116,22 @@ export function Hero() {
               {slide.subtitle}
             </motion.p>
 
-            <motion.div custom={3} variants={copy} initial="hidden" animate="visible" className="mt-10">
+            <motion.div
+              custom={3}
+              variants={copy}
+              initial="hidden"
+              animate="visible"
+              className="mt-10 flex flex-wrap items-center gap-3 sm:gap-4"
+            >
               <Button to={slide.cta.to} variant="light" size="lg">
                 {slide.cta.label}
               </Button>
+              {/* Slides that split by department carry a second, equal-weight entry point. */}
+              {slide.ctaSecondary && (
+                <Button to={slide.ctaSecondary.to} variant="outlineLight" size="lg">
+                  {slide.ctaSecondary.label}
+                </Button>
+              )}
             </motion.div>
           </div>
         </AnimatePresence>

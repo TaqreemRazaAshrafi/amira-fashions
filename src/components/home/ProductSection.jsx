@@ -4,13 +4,18 @@ import productService from '../../services/productService'
 import { useAsync } from '../../hooks/useAsync'
 import ProductRail from '../product/ProductRail'
 import SectionHeader from '../layout/SectionHeader'
-import { ErrorState } from '../common/States'
+import { EmptyState, ErrorState } from '../common/States'
 import { ProductCardSkeleton } from '../common/Skeleton'
 
 /**
- * A titled product rail backed by a collection.
+ * A titled product rail.
  *
- * Fetches through the product service (never the mock data directly) and owns
+ * The rail's source is one of three shapes — an editorial collection, a product
+ * flag (`newArrival` / `bestseller`), or the trending ranking — and each can be
+ * scoped to a department, so the home page and both department landing pages
+ * share this one component instead of three near-identical ones.
+ *
+ * Fetches through the product service (never the data modules directly) and owns
  * its own loading, error and retry states, so one slow section can never block
  * the rest of the page from rendering.
  */
@@ -19,15 +24,28 @@ export function ProductSection({
   title,
   description,
   collectionSlug,
+  flag,
+  trending = false,
+  department,
   action,
   limit = 8,
   className,
 }) {
-  const fetcher = useCallback(
-    () => productService.getByCollection(collectionSlug, { limit }),
-    [collectionSlug, limit]
-  )
-  const { data, isLoading, isError, retry } = useAsync(fetcher, [collectionSlug, limit])
+  const fetcher = useCallback(() => {
+    if (flag) return productService.getByFlag(flag, { limit, department })
+    if (trending) return productService.getTrending({ limit, department })
+    return productService.getByCollection(collectionSlug, { limit, department })
+  }, [collectionSlug, flag, trending, department, limit])
+
+  const { data, isLoading, isError, retry } = useAsync(fetcher, [
+    collectionSlug,
+    flag,
+    trending,
+    department,
+    limit,
+  ])
+
+  const isEmpty = !isLoading && !isError && (data?.length ?? 0) === 0
 
   return (
     <section className={cn('section-y', className)}>
@@ -49,6 +67,14 @@ export function ProductSection({
             title="We could not load this edit."
             description="The connection dropped on the way. Try again in a moment."
             onRetry={retry}
+          />
+        )}
+
+        {isEmpty && (
+          <EmptyState
+            title="Nothing in this edit yet"
+            description="New pieces land every Friday. Check back shortly."
+            className="py-12"
           />
         )}
 

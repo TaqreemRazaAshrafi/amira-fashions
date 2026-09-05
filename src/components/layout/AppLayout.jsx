@@ -4,6 +4,7 @@ import { ROUTES } from '../../constants/routes'
 import { useUIStore } from '../../store/uiStore'
 import Navbar from '../navbar/Navbar'
 import MobileNav from '../navbar/MobileNav'
+import MobileBottomNav from '../navbar/MobileBottomNav'
 import Footer from '../footer/Footer'
 import CartDrawer from '../cart/CartDrawer'
 import SearchOverlay from '../search/SearchOverlay'
@@ -53,6 +54,12 @@ export function AppLayout({ children }) {
       </main>
 
       <Footer />
+
+      {/* Phone-only tab bar. The spacer below the footer keeps it from covering
+          the last row of footer links. */}
+      <div aria-hidden="true" className="h-[calc(3.75rem+env(safe-area-inset-bottom,0px))] lg:hidden" />
+      <MobileBottomNav />
+
       <Toaster />
     </div>
   )

@@ -3,9 +3,16 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { STORAGE_KEYS } from '../utils/storage'
 import authService from '../services/authService'
 
+/**
+ * Authentication state.
+ *
+ * The token is the single source of truth for "is signed in"; `status` is only
+ * for driving spinners. Only `user` and `token` are persisted — a half-finished
+ * `loading` status must never survive a reload.
+ */
 export const useAuthStore = create()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
       status: 'idle', // idle | loading | authenticated | error
@@ -35,6 +42,21 @@ export const useAuthStore = create()(
         }
       },
 
+      /** Optimism is deliberate here: the server is the authority, but the form
+       *  already validated, and a failed save rolls the previous user back. */
+      updateProfile: async (patch) => {
+        const previous = get().user
+        set({ user: { ...previous, ...patch } })
+        try {
+          const saved = await authService.updateProfile(patch)
+          set({ user: { ...previous, ...patch, ...saved } })
+          return get().user
+        } catch (error) {
+          set({ user: previous, error: error.message })
+          throw error
+        }
+      },
+
       logout: async () => {
         try {
           await authService.logout()
@@ -57,3 +79,4 @@ export const useAuthStore = create()(
 )
 
 export const selectIsAuthenticated = (state) => Boolean(state.token)
+export const selectUser = (state) => state.user

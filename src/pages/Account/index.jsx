@@ -1,58 +1,41 @@
-import { useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Heart, LogOut, Package, ShoppingBag } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Heart, MapPin, Package, ShoppingBag } from 'lucide-react'
 import { ROUTES } from '../../constants/routes'
-import { formatDate } from '../../utils/format'
-import { useAsync } from '../../hooks/useAsync'
-import { useRecentlyViewed } from '../../hooks/useRecentlyViewed'
-import productService from '../../services/productService'
-import { useAuthStore, selectIsAuthenticated } from '../../store/authStore'
+import { formatPrice, pluralize } from '../../utils/format'
 import { useCartStore } from '../../store/cartStore'
 import { useWishlistStore } from '../../store/wishlistStore'
-import Seo from '../../components/common/Seo'
+import { useOrderStore } from '../../store/orderStore'
+import { useUserStore } from '../../store/userStore'
 import Button from '../../components/common/Button'
 import { EmptyState } from '../../components/common/States'
-import Redirect from '../../components/common/Redirect'
-import PageHero from '../../components/layout/PageHero'
-import SectionHeader from '../../components/layout/SectionHeader'
-import ProductRail from '../../components/product/ProductRail'
-
-/** Module-scope so the redirect effect sees a stable object identity. */
-const LOGIN_REDIRECT_STATE = { from: ROUTES.account }
+import AccountLayout from '../../components/account/AccountLayout'
+import OrderCard from '../../components/account/OrderCard'
 
 /**
  * Account overview.
  *
- * Order history is intentionally a placeholder: it needs a real backend, and
- * inventing mock orders here would mislead. Everything else — wishlist, bag,
- * recently viewed — is live from local state.
+ * A dashboard of counts that each link somewhere useful, plus the most recent
+ * order. Everything is read from local stores, so this page never shows a
+ * spinner — the detail screens do the fetching.
  */
 export default function AccountPage() {
-  const navigate = useNavigate()
-  const isAuthenticated = useAuthStore(selectIsAuthenticated)
-  const user = useAuthStore((state) => state.user)
-  const logout = useAuthStore((state) => state.logout)
-
   const wishlistCount = useWishlistStore((state) => state.items.length)
   const cartCount = useCartStore((state) => state.items.reduce((n, i) => n + i.quantity, 0))
+  const cartItems = useCartStore((state) => state.items)
+  const orders = useOrderStore((state) => state.orders)
+  const addressCount = useUserStore((state) => state.addresses.length)
 
-  const { slugs } = useRecentlyViewed()
-  const fetcher = useCallback(async () => {
-    const results = await Promise.allSettled(slugs.map((slug) => productService.getBySlug(slug)))
-    return results.filter((r) => r.status === 'fulfilled').map((r) => r.value)
-  }, [slugs])
-  const { data: recentlyViewed } = useAsync(fetcher, [slugs.join(',')])
-
-  if (!isAuthenticated) {
-    return <Redirect to={ROUTES.login} state={LOGIN_REDIRECT_STATE} />
-  }
-
-  const signOut = async () => {
-    await logout()
-    navigate(ROUTES.home)
-  }
+  const cartValue = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const latestOrder = orders[0] ?? null
 
   const tiles = [
+    {
+      id: 'orders',
+      icon: Package,
+      label: 'Orders',
+      value: orders.length ? pluralize(orders.length, 'order') : 'No orders yet',
+      to: ROUTES.accountOrders,
+    },
     {
       id: 'wishlist',
       icon: Heart,
@@ -60,80 +43,75 @@ export default function AccountPage() {
       value: `${wishlistCount} saved`,
       to: ROUTES.wishlist,
     },
-    { id: 'bag', icon: ShoppingBag, label: 'Shopping bag', value: `${cartCount} in bag`, to: ROUTES.cart },
-    { id: 'orders', icon: Package, label: 'Orders', value: 'No orders yet', to: ROUTES.shop },
+    {
+      id: 'bag',
+      icon: ShoppingBag,
+      label: 'Shopping bag',
+      value: cartCount ? `${cartCount} in bag · ${formatPrice(cartValue)}` : 'Empty',
+      to: ROUTES.cart,
+    },
+    {
+      id: 'addresses',
+      icon: MapPin,
+      label: 'Addresses',
+      value: addressCount ? pluralize(addressCount, 'address', 'addresses') : 'None saved',
+      to: ROUTES.accountAddresses,
+    },
   ]
 
   return (
-    <>
-      <Seo
-        title="Account"
-        description="Your Amira Fashions account."
-        canonicalPath={ROUTES.account}
-        noIndex
-      />
-
-      <PageHero
-        eyebrow={user?.createdAt ? `Member since ${formatDate(user.createdAt)}` : 'Your account'}
-        title={user?.name ? `Hello, ${user.name}` : 'Your account'}
-        description={user?.email}
-        breadcrumbs={[
-          { label: 'Home', to: ROUTES.home },
-          { label: 'Account', to: ROUTES.account },
-        ]}
-      />
-
-      <div className="shell pb-section">
-        <ul className="grid gap-3 sm:grid-cols-3 sm:gap-4">
-          {tiles.map(({ id, icon: Icon, label, value, to }) => (
-            <li key={id}>
-              <Link
-                to={to}
-                className="group flex h-full flex-col justify-between gap-8 border border-line bg-surface p-6 transition-colors duration-250 hover:border-text"
-              >
-                <Icon className="h-5 w-5 text-accent" strokeWidth={1.3} aria-hidden="true" />
-                <span>
-                  <span className="block text-fluid-xs uppercase tracking-luxe text-muted">
-                    {label}
-                  </span>
-                  <span className="mt-1 block text-fluid-lg">{value}</span>
+    <AccountLayout
+      title="Account"
+      description="Your Amira Fashions account."
+      canonicalPath={ROUTES.account}
+    >
+      <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+        {tiles.map(({ id, icon: Icon, label, value, to }) => (
+          <li key={id}>
+            <Link
+              to={to}
+              className="group flex h-full flex-col justify-between gap-8 border border-line bg-surface p-6 transition-colors duration-250 hover:border-text"
+            >
+              <Icon className="h-5 w-5 text-accent" strokeWidth={1.3} aria-hidden="true" />
+              <span>
+                <span className="block text-fluid-xs uppercase tracking-luxe text-muted">
+                  {label}
                 </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                <span className="mt-1 block text-fluid-lg">{value}</span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
 
-        <section className="mt-16 border-t border-line pt-10">
-          <h2 className="text-fluid-xl">Order history</h2>
+      <section className="mt-14 border-t border-line pt-10">
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <h2 className="text-fluid-xl">Latest order</h2>
+          {orders.length > 1 && (
+            <Link
+              to={ROUTES.accountOrders}
+              className="text-fluid-xs uppercase tracking-wide text-muted underline-offset-4 hover:text-text hover:underline"
+            >
+              View all
+            </Link>
+          )}
+        </div>
+
+        {latestOrder ? (
+          <OrderCard order={latestOrder} />
+        ) : (
           <EmptyState
             title="No orders yet"
             description="Once you place an order it will appear here with its tracking link."
             action={
-              <Button to={ROUTES.collection('new-arrivals')} variant="outline">
+              <Button to={ROUTES.newArrivals} variant="outline">
                 Shop new arrivals
               </Button>
             }
             className="py-14"
           />
-        </section>
-
-        {recentlyViewed?.length > 0 && (
-          <section className="mt-16 border-t border-line pt-14">
-            <SectionHeader
-              eyebrow="Picking up where you left off"
-              title="Recently viewed"
-              action={{ label: 'Shop all', to: ROUTES.shop }}
-            />
-            <ProductRail products={recentlyViewed} />
-          </section>
         )}
-
-        <div className="mt-16 border-t border-line pt-10">
-          <Button variant="quiet" icon={LogOut} iconPosition="left" onClick={signOut}>
-            Sign out
-          </Button>
-        </div>
-      </div>
-    </>
+      </section>
+    </AccountLayout>
   )
 }

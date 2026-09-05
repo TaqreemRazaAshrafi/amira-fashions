@@ -1,5 +1,6 @@
 export { default as Hero } from './Hero'
 export { default as CategoryGrid } from './CategoryGrid'
+export { default as DepartmentShowcase } from './DepartmentShowcase'
 export { default as ProductSection } from './ProductSection'
 export { default as PromoBanner } from './PromoBanner'
 export { default as CollectionsShowcase } from './CollectionsShowcase'

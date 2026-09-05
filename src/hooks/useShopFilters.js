@@ -1,8 +1,10 @@
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { QUERY_KEYS } from '../constants/filters'
+import { COLOR_MAP, QUERY_KEYS } from '../constants/filters'
+import { titleCase } from '../utils/format'
 
-const LIST_KEYS = new Set([QUERY_KEYS.size, QUERY_KEYS.color])
+/** Params that hold a comma-separated list rather than a single value. */
+const LIST_KEYS = new Set([QUERY_KEYS.size, QUERY_KEYS.color, QUERY_KEYS.brand])
 
 const parseList = (value) => (value ? value.split(',').filter(Boolean) : [])
 const parseNumber = (value) => {
@@ -15,24 +17,32 @@ const parseNumber = (value) => {
  *
  * The URL is the single source of truth, which makes every filtered view
  * shareable, bookmarkable and correct on back/forward navigation:
- *   /shop?category=dresses&size=M,L&sort=price-low
+ *   /men/shirts?size=M,L&brand=Studio%20A&sort=price-low
+ *
+ * `locked*` values come from the route itself (department, category, collection)
+ * and are removed from both the filter panel and the removable chips, so the URL
+ * and the UI can never disagree.
  */
-export function useShopFilters({ lockedCategory, lockedCollection } = {}) {
+export function useShopFilters({ lockedDepartment, lockedCategory, lockedCollection } = {}) {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const filters = useMemo(
     () => ({
+      department: lockedDepartment ?? searchParams.get(QUERY_KEYS.department) ?? null,
       category: lockedCategory ?? searchParams.get(QUERY_KEYS.category) ?? null,
       collection: lockedCollection ?? searchParams.get(QUERY_KEYS.collection) ?? null,
+      brands: parseList(searchParams.get(QUERY_KEYS.brand)),
       sizes: parseList(searchParams.get(QUERY_KEYS.size)),
       colors: parseList(searchParams.get(QUERY_KEYS.color)),
       min: parseNumber(searchParams.get(QUERY_KEYS.min)),
       max: parseNumber(searchParams.get(QUERY_KEYS.max)),
+      discount: parseNumber(searchParams.get(QUERY_KEYS.discount)),
+      rating: parseNumber(searchParams.get(QUERY_KEYS.rating)),
       sale: searchParams.get(QUERY_KEYS.sale) === 'true',
       availability: searchParams.get(QUERY_KEYS.availability) ?? null,
       q: searchParams.get(QUERY_KEYS.q) ?? '',
     }),
-    [searchParams, lockedCategory, lockedCollection]
+    [searchParams, lockedDepartment, lockedCategory, lockedCollection]
   )
 
   const sort = searchParams.get(QUERY_KEYS.sort) ?? 'featured'
@@ -86,19 +96,37 @@ export function useShopFilters({ lockedCategory, lockedCollection } = {}) {
   /** Chips rendered above the grid; each knows how to remove itself. */
   const activeChips = useMemo(() => {
     const chips = []
+    if (filters.department && !lockedDepartment)
+      chips.push({
+        key: QUERY_KEYS.department,
+        label: titleCase(filters.department),
+        value: filters.department,
+      })
     if (filters.category && !lockedCategory)
-      chips.push({ key: QUERY_KEYS.category, label: filters.category, value: filters.category })
+      chips.push({
+        key: QUERY_KEYS.category,
+        label: titleCase(filters.category),
+        value: filters.category,
+      })
     if (filters.collection && !lockedCollection)
       chips.push({
         key: QUERY_KEYS.collection,
-        label: filters.collection,
+        label: titleCase(filters.collection),
         value: filters.collection,
       })
-    filters.sizes.forEach((s) =>
-      chips.push({ key: QUERY_KEYS.size, label: `Size ${s}`, value: s, isList: true })
+    filters.brands.forEach((brand) =>
+      chips.push({ key: QUERY_KEYS.brand, label: brand, value: brand, isList: true })
     )
-    filters.colors.forEach((c) =>
-      chips.push({ key: QUERY_KEYS.color, label: c, value: c, isList: true })
+    filters.sizes.forEach((size) =>
+      chips.push({ key: QUERY_KEYS.size, label: `Size ${size}`, value: size, isList: true })
+    )
+    filters.colors.forEach((color) =>
+      chips.push({
+        key: QUERY_KEYS.color,
+        label: COLOR_MAP[color]?.label ?? titleCase(color),
+        value: color,
+        isList: true,
+      })
     )
     if (filters.min != null || filters.max != null)
       chips.push({
@@ -106,15 +134,27 @@ export function useShopFilters({ lockedCategory, lockedCollection } = {}) {
         label: `₹${filters.min ?? 0} – ₹${filters.max ?? '∞'}`,
         value: 'price',
       })
+    if (filters.discount != null)
+      chips.push({
+        key: QUERY_KEYS.discount,
+        label: `${filters.discount}% off or more`,
+        value: filters.discount,
+      })
+    if (filters.rating != null)
+      chips.push({
+        key: QUERY_KEYS.rating,
+        label: `${filters.rating}★ & above`,
+        value: filters.rating,
+      })
     if (filters.sale) chips.push({ key: QUERY_KEYS.sale, label: 'On sale', value: 'true' })
     if (filters.availability)
       chips.push({
         key: QUERY_KEYS.availability,
-        label: filters.availability.replace('-', ' '),
+        label: titleCase(filters.availability),
         value: filters.availability,
       })
     return chips
-  }, [filters, lockedCategory, lockedCollection])
+  }, [filters, lockedDepartment, lockedCategory, lockedCollection])
 
   const removeChip = useCallback(
     (chip) => {

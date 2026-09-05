@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo } from 'react'
-import { SearchX } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Clock, SearchX, TrendingUp } from 'lucide-react'
 import { ROUTES } from '../../constants/routes'
+import { featuredCategories } from '../../data/categories'
+import { departments } from '../../data/departments'
 import { useShopFilters } from '../../hooks/useShopFilters'
 import { useAsync } from '../../hooks/useAsync'
-import { useSearchStore, POPULAR_SEARCHES } from '../../store/searchStore'
+import { useSearchStore, POPULAR_SEARCHES, TRENDING_SEARCHES } from '../../store/searchStore'
 import productService from '../../services/productService'
 import Seo from '../../components/common/Seo'
 import Button from '../../components/common/Button'
+import Image from '../../components/common/Image'
 import Pagination from '../../components/common/Pagination'
 import { ProductGridSkeleton } from '../../components/common/Skeleton'
 import { EmptyState, ErrorState } from '../../components/common/States'
@@ -25,6 +29,14 @@ const PER_PAGE = 12
 export default function SearchPage() {
   const { filters, sort, page, setSort, setPage, setQuery } = useShopFilters()
   const addRecent = useSearchStore((state) => state.addRecent)
+  const recent = useSearchStore((state) => state.recent)
+  const clearRecent = useSearchStore((state) => state.clearRecent)
+
+  // The featured categories of every department, as visual entry points.
+  const popularCategories = useMemo(
+    () => departments.flatMap((department) => featuredCategories(department.slug)).slice(0, 10),
+    []
+  )
 
   // Landing here from a shared link should still record the term.
   useEffect(() => {
@@ -93,21 +105,107 @@ export default function SearchPage() {
         </header>
 
         {!filters.q ? (
-          <div className="py-10">
-            <p className="eyebrow mb-5">Popular searches</p>
-            <ul className="flex flex-wrap gap-2">
-              {POPULAR_SEARCHES.map((entry) => (
-                <li key={entry}>
+          /* Nothing typed yet: offer somewhere to go rather than a blank page —
+             what they searched before, what others search, and the categories. */
+          <div className="flex flex-col gap-12 py-10">
+            {recent.length > 0 && (
+              <section>
+                <div className="mb-5 flex items-center justify-between gap-4">
+                  <p className="eyebrow">Recent searches</p>
                   <button
                     type="button"
-                    onClick={() => setQuery(entry)}
-                    className="border border-line px-4 py-2 text-fluid-xs uppercase tracking-wide transition-colors duration-250 hover:border-text hover:bg-text hover:text-background"
+                    onClick={clearRecent}
+                    className="text-fluid-xs text-muted underline-offset-4 hover:text-text hover:underline"
                   >
-                    {entry}
+                    Clear
                   </button>
-                </li>
-              ))}
-            </ul>
+                </div>
+                <ul className="flex flex-wrap gap-2">
+                  {recent.map((entry) => (
+                    <li key={entry}>
+                      <button
+                        type="button"
+                        onClick={() => setQuery(entry)}
+                        className="flex items-center gap-2 border border-line px-4 py-2 text-fluid-xs transition-colors duration-250 hover:border-text hover:text-text"
+                      >
+                        <Clock className="h-3 w-3 text-muted" aria-hidden="true" />
+                        {entry}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            <section>
+              <p className="eyebrow mb-5">Trending searches</p>
+              <ul className="flex flex-wrap gap-2">
+                {TRENDING_SEARCHES.map((entry) => (
+                  <li key={entry}>
+                    <button
+                      type="button"
+                      onClick={() => setQuery(entry)}
+                      className="flex items-center gap-2 border border-line px-4 py-2 text-fluid-xs uppercase tracking-wide transition-colors duration-250 hover:border-text hover:bg-text hover:text-background"
+                    >
+                      <TrendingUp className="h-3 w-3" aria-hidden="true" />
+                      {entry}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <section>
+              <p className="eyebrow mb-5">Popular searches</p>
+              <ul className="flex flex-wrap gap-2">
+                {POPULAR_SEARCHES.map((entry) => (
+                  <li key={entry}>
+                    <button
+                      type="button"
+                      onClick={() => setQuery(entry)}
+                      className="border border-line px-4 py-2 text-fluid-xs uppercase tracking-wide transition-colors duration-250 hover:border-text hover:bg-text hover:text-background"
+                    >
+                      {entry}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <section>
+              <p className="eyebrow mb-5">Popular categories</p>
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                {popularCategories.map((category) => (
+                  <li key={category.id}>
+                    <Link
+                      to={ROUTES.departmentCategory(category.department, category.slug)}
+                      className="group relative block overflow-hidden bg-surface-alt"
+                    >
+                      <Image
+                        src={category.image}
+                        alt=""
+                        ratio="portrait"
+                        width={400}
+                        sizes="(max-width: 640px) 50vw, 20vw"
+                        imgClassName="transition-transform duration-800 ease-luxe group-hover:scale-105"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-0 bg-gradient-to-t from-text/80 to-transparent"
+                      />
+                      <span className="absolute inset-x-0 bottom-0 p-3 text-background">
+                        <span className="block text-[10px] uppercase tracking-luxe text-background/70">
+                          {category.department}
+                        </span>
+                        <span className="mt-0.5 block font-display text-fluid-base">
+                          {category.name}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
           </div>
         ) : (
           <>
@@ -116,6 +214,8 @@ export default function SearchPage() {
               sort={sort}
               onSortChange={setSort}
               showFilterButton={false}
+              isLoading={isLoading}
+              isError={isError}
               className="mb-8"
             />
 

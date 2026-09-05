@@ -1,24 +1,73 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ShoppingBag } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes'
 import { calculateTotals } from '../../services/cartService'
+import productService from '../../services/productService'
 import { useCartStore } from '../../store/cartStore'
+import { useAsync } from '../../hooks/useAsync'
+import { useRecentlyViewed } from '../../hooks/useRecentlyViewed'
 import Seo from '../../components/common/Seo'
 import Button from '../../components/common/Button'
 import { EmptyState } from '../../components/common/States'
 import PageHero from '../../components/layout/PageHero'
+import SectionHeader from '../../components/layout/SectionHeader'
 import CartLineItem from '../../components/cart/CartLineItem'
 import CartSummary from '../../components/cart/CartSummary'
+import CouponField from '../../components/cart/CouponField'
 import FreeShippingMeter from '../../components/cart/FreeShippingMeter'
+import ProductRail from '../../components/product/ProductRail'
 
-/** The full bag: line items on the left, a sticky order summary on the right. */
+/**
+ * The full bag: line items on the left, a sticky order summary on the right.
+ *
+ * Recommendations are drawn from the department of whatever is already in the
+ * bag, so a bag of menswear is not answered with a rail of dresses. They load
+ * independently of the bag itself and simply do not render if the request fails.
+ */
 export default function CartPage() {
   const items = useCartStore((state) => state.items)
   const deliveryId = useCartStore((state) => state.deliveryId)
+  const coupon = useCartStore((state) => state.coupon)
   const clear = useCartStore((state) => state.clear)
-  const totals = useMemo(() => calculateTotals(items, deliveryId), [items, deliveryId])
+
+  const totals = useMemo(
+    () => calculateTotals(items, deliveryId, coupon),
+    [items, deliveryId, coupon]
+  )
+
+  // Slugs already in the bag — recommending them back would be noise.
+  const inBag = useMemo(() => new Set(items.map((item) => item.slug)), [items])
+  const bagKey = items.map((item) => item.slug).join(',')
+
+  /**
+   * Scope recommendations to the bag's department when the bag is single-minded;
+   * a mixed bag gets the unscoped ranking rather than an arbitrary pick.
+   */
+  const bagDepartment = useMemo(() => {
+    const departments = new Set(items.map((item) => item.department).filter(Boolean))
+    return departments.size === 1 ? [...departments][0] : undefined
+  }, [items])
+
+  const recommendationFetcher = useCallback(async () => {
+    if (items.length === 0) return []
+    const results = await productService.getTrending({ limit: 12, department: bagDepartment })
+    return results.filter((product) => !inBag.has(product.slug)).slice(0, 8)
+  }, [items.length, inBag, bagDepartment])
+  const { data: recommendations } = useAsync(recommendationFetcher, [bagKey, bagDepartment])
+
+  const { slugs: viewedSlugs } = useRecentlyViewed()
+  const viewedKey = viewedSlugs.join(',')
+  const viewedFetcher = useCallback(async () => {
+    const candidates = viewedSlugs.filter((slug) => !inBag.has(slug)).slice(0, 8)
+    if (candidates.length === 0) return []
+    const settled = await Promise.allSettled(
+      candidates.map((slug) => productService.getBySlug(slug))
+    )
+    return settled.filter((result) => result.status === 'fulfilled').map((result) => result.value)
+  }, [viewedKey, inBag]) // eslint-disable-line react-hooks/exhaustive-deps
+  const { data: recentlyViewed } = useAsync(viewedFetcher, [viewedKey, bagKey])
 
   return (
     <>
@@ -42,11 +91,11 @@ export default function CartPage() {
         {items.length === 0 ? (
           <EmptyState
             icon={ShoppingBag}
-            title="Your bag is empty"
+            title="Your cart is waiting for something special."
             description="Nothing here yet. The Friday edit is a good place to start."
             action={
-              <Button to={ROUTES.collection('new-arrivals')} variant="outline">
-                Shop new arrivals
+              <Button to={ROUTES.newArrivals} variant="outline">
+                Start shopping
               </Button>
             }
           />
@@ -90,15 +139,10 @@ export default function CartPage() {
               <div className="sticky top-[calc(var(--nav-height)+1.5rem)] border border-line bg-surface p-6 sm:p-8">
                 <h2 className="text-fluid-xs uppercase tracking-luxe">Order summary</h2>
                 <FreeShippingMeter totals={totals} className="mt-6" />
+                <CouponField totals={totals} className="mt-6" />
                 <CartSummary totals={totals} className="mt-6" />
 
-                <Button
-                  to={ROUTES.checkout}
-                  size="lg"
-                  fullWidth
-                  magnetic={false}
-                  className="mt-8"
-                >
+                <Button to={ROUTES.checkout} size="lg" fullWidth magnetic={false} className="mt-8">
                   Proceed to checkout
                 </Button>
 
@@ -110,6 +154,28 @@ export default function CartPage() {
           </div>
         )}
       </div>
+
+      {items.length > 0 && recommendations?.length > 0 && (
+        <section className="border-t border-line">
+          <div className="shell section-y">
+            <SectionHeader
+              eyebrow="Before you go"
+              title="You may also like"
+              action={{ label: 'Shop all', to: ROUTES.shop }}
+            />
+            <ProductRail products={recommendations} />
+          </div>
+        </section>
+      )}
+
+      {recentlyViewed?.length > 0 && (
+        <section className="border-t border-line">
+          <div className="shell section-y">
+            <SectionHeader eyebrow="Where you have been" title="Recently viewed" />
+            <ProductRail products={recentlyViewed} />
+          </div>
+        </section>
+      )}
     </>
   )
 }

@@ -67,9 +67,11 @@ export function PageHero({
           className="h-full w-full"
           imgClassName="opacity-70"
         />
+        {/* A bright photograph washes out light type at the top of the frame,
+            where the breadcrumbs sit, so the scrim keeps weight up there too. */}
         <div
           aria-hidden="true"
-          className="absolute inset-0 bg-gradient-to-t from-text/85 via-text/45 to-text/25"
+          className="absolute inset-0 bg-gradient-to-t from-text/90 via-text/50 to-text/45"
         />
       </div>
 
@@ -87,7 +89,7 @@ export function PageHero({
         {breadcrumbs && (
           <Breadcrumbs
             items={breadcrumbs}
-            className="mb-6 text-background/70 [&_[aria-current]]:text-background"
+            className="mb-6 text-background/85 [&_[aria-current]]:text-background"
           />
         )}
         {eyebrow && <p className="eyebrow mb-4 text-background/70">{eyebrow}</p>}
