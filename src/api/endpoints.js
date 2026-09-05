@@ -1,4 +1,4 @@
-/** Every server path in one place. */
+/** Every server path in one place. ok */
 export const ENDPOINTS = {
   products: '/products',
   product: (slug) => `/products/${slug}`,
